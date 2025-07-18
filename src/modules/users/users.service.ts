@@ -48,12 +48,17 @@ export class UsersService {
   }
 
   async findOne(id: string) {
-    return this.userModel.findById(id).select('-password');
+    return await this.userModel.findById(id).select('-password');
   }
+
+  async findUserByEmail(email: string) {
+    return await this.userModel.findOne({ email });
+  }
+
 
   async update(id: string, updateUserDto: UpdateUserDto) {
     try {
-      const { email, password, ...rest } = updateUserDto as any;
+      const { password, ...rest } = updateUserDto as any;
 
       // Nếu có password → hash lại
       if (password) {

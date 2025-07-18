@@ -12,3 +12,18 @@ export const hashPassword = async (password: string) => {
         throw error;
     }
 };
+
+export const comparePassWord = async (password: string, hashpassword: string) => {
+    try {
+        if (!password) {
+            throw new Error('Password is required');
+        }
+        if (!hashpassword) {
+            throw new Error('Hash password is required');
+        }
+        return await bcrypt.compare(password, hashpassword);
+    } catch (error) {
+        console.error('Error comparing password:', error);
+        throw error;
+    }
+};

@@ -12,6 +12,7 @@ import { ReviewsModule } from '@/modules/reviews/reviews.module';
 import { UsersModule } from './modules/users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AuthModule } from '@/auth/auth.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { MongooseModule } from '@nestjs/mongoose';
       }),
       inject: [ConfigService],
     }),
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

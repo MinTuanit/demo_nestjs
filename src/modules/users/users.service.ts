@@ -5,7 +5,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from './schemas/user.schema';
 import { hashPassword } from '@/utils/hashPassword';
+import { v4 as uuidv4 } from 'uuid';
 import aqp from 'api-query-params';
+import { CreateAuthDto } from '@/auth/dto/create-auth.dto';
 
 @Injectable()
 export class UsersService {
@@ -93,4 +95,24 @@ export class UsersService {
     };
   }
 
+  async register(registerDto: CreateAuthDto) {
+    try {
+      const { name, email, password } = registerDto;
+      const existingUser = await this.userModel.findOne({ email: email });
+      if (existingUser) {
+        throw new BadRequestException('Email already exists');
+      }
+      const hashedPassword = await hashPassword(password);
+      const newUser = await this.userModel.create({
+        name, email, password: hashedPassword,
+        isActive: false,
+        codeId: uuidv4(),
+        codeExpired: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      });
+      return newUser;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
+  }
 }

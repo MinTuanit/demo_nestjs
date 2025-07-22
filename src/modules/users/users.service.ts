@@ -8,11 +8,15 @@ import { hashPassword } from '@/utils/hashPassword';
 import { v4 as uuidv4 } from 'uuid';
 import aqp from 'api-query-params';
 import { CreateAuthDto } from '@/auth/dto/create-auth.dto';
+import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name)
-  private userModel: Model<User>) { }
+  constructor(
+    @InjectModel(User.name)
+    private userModel: Model<User>,
+    private readonly mailerService: MailerService
+  ) { }
 
   async create(createUserDto: CreateUserDto) {
     try {
@@ -103,12 +107,25 @@ export class UsersService {
         throw new BadRequestException('Email already exists');
       }
       const hashedPassword = await hashPassword(password);
+      const codeId = uuidv4();
       const newUser = await this.userModel.create({
         name, email, password: hashedPassword,
         isActive: false,
-        codeId: uuidv4(),
+        codeId: codeId,
         codeExpired: new Date(Date.now() + 24 * 60 * 60 * 1000),
       });
+
+      // Send activation email
+      this.mailerService.sendMail({
+        to: newUser.email, // list of receivers
+        subject: 'Action account', // Subject line
+        template: 'register', // The name of the template file
+        context: {
+          name: newUser.name,
+          activationCode: codeId,
+        }
+      })
+
       return newUser;
     } catch (error) {
       console.error('Error creating user:', error);

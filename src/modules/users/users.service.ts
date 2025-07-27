@@ -7,7 +7,7 @@ import { User } from './schemas/user.schema';
 import { hashPassword } from '@/utils/hashPassword';
 import { v4 as uuidv4 } from 'uuid';
 import aqp from 'api-query-params';
-import { CreateAuthDto } from '@/auth/dto/create-auth.dto';
+import { CodeAuthDto, CreateAuthDto } from '@/auth/dto/create-auth.dto';
 import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
@@ -131,5 +131,22 @@ export class UsersService {
       console.error('Error creating user:', error);
       throw error;
     }
+  }
+
+  async handleActive(codeDto: CodeAuthDto) {
+    const user = await this.userModel.findOne({
+      _id: codeDto._id,
+      codeId: codeDto.code,
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid activation code or expired');
+    } else if (user.codeExpired < new Date()) { // Check if the code has expired
+      throw new BadRequestException('Activation code has expired');
+    } else {
+      user.isActive = true;
+      await user.save();
+    }
+    return codeDto;
   }
 }

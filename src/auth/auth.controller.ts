@@ -34,6 +34,12 @@ export class AuthController {
     return this.authService.checkCode(codeDto);
   }
 
+  @Public()
+  @Post('retry-active')
+  async RetryActive(@Body("email") email: string) {
+    return this.authService.retryActive(email);
+  }
+
   @UseGuards(LocalAuthGuard)
   @Post('logout')
   async logout(@Request() req) {

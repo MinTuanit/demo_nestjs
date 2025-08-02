@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { UsersService } from '@/modules/users/users.service';
 import { JwtService } from '@nestjs/jwt';
-import { comparePassWord } from '@/utils/hashPassword';
-import { CodeAuthDto, CreateAuthDto } from './dto/create-auth.dto';
+import { comparePassWord, hashPassword } from '@/utils/hashPassword';
+import { ChangePasswordDto, CodeAuthDto, CreateAuthDto } from './dto/create-auth.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { MailerService } from '@nestjs-modules/mailer';
 
@@ -65,6 +65,60 @@ export class AuthService {
         name: user?.name ?? user.email,
         activationCode: codeId,
       }
+    })
+
+    return {
+      _id: user._id,
+      email: user.email,
+    }
+  }
+
+  retryPassword = async (email: string) => {
+    const user = await this.usersService.findUserByEmail(email);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const codeId = uuidv4();
+    await user.updateOne({
+      codeId: codeId,
+      codeExpired: new Date(Date.now() + 60 * 60 * 1000), // 1 hours
+    })
+
+    this.mailerService.sendMail({
+      to: user.email, // list of receivers
+      subject: 'Change Password', // Subject line
+      template: 'register', // The name of the template file
+      context: {
+        name: user?.name ?? user.email,
+        activationCode: codeId,
+      }
+    })
+
+    return {
+      _id: user._id,
+      email: user.email,
+    }
+  }
+
+  changePassword = async (changePasswordDto: ChangePasswordDto) => {
+    const { code, password, confirmPassword, email } = changePasswordDto;
+
+    if (password !== confirmPassword) {
+      throw new BadRequestException('Password vs confirm password incorrect');
+    }
+
+    const user = await this.usersService.findByEmailAndCode(email, code);
+
+    if (!user) {
+      throw new BadRequestException('User not found or Code is not correct');
+    } else if (user.codeExpired < new Date()) { // Check if the code has expired
+      throw new BadRequestException('Activation code has expired');
+    }
+
+    const hashedPassword = await hashPassword(password);
+    await user.updateOne({
+      password: hashedPassword
     })
 
     return {

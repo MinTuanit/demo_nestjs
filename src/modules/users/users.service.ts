@@ -48,8 +48,13 @@ export class UsersService {
       .select('-password')
       .sort(sort as any);
     return {
-      result,
-      totalPages
+      meta: {
+        current: current,
+        pageSize: limit,
+        pages: totalPages,
+        total: totalItems
+      },
+      result
     };
   }
 

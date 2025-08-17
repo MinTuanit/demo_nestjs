@@ -5,22 +5,31 @@ import { comparePassWord, hashPassword } from '@/utils/hashPassword';
 import { ChangePasswordDto, CodeAuthDto, CreateAuthDto } from './dto/create-auth.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { MailerService } from '@nestjs-modules/mailer';
+import { OAuth2Client } from 'google-auth-library';
 
 @Injectable()
 export class AuthService {
+  private googleClient: OAuth2Client;
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
     private readonly mailerService: MailerService
-  ) { }
+  ) { this.googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID); }
 
   async validateUser(username: string, pass: string): Promise<any> {
     const user = await this.usersService.findUserByEmail(username);
     if (!user) return null;
-    const isvalidUser = user && await comparePassWord(pass, user.password);
-    if (!isvalidUser) return null;
+
+    if (user.accountType === "GOOGLE") {
+      return null;
+    }
+
+    const isValidUser = await comparePassWord(pass, user.password);
+    if (!isValidUser) return null;
+
     return user;
   }
+
 
   async login(user: any) {
     const payload = { username: user.email, sub: user._id };
@@ -33,6 +42,48 @@ export class AuthService {
       },
       access_token: this.jwtService.sign(payload),
     };
+  }
+
+  async googleLogin(token: string) {
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken: token,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+
+      const payload = ticket.getPayload();
+      if (!payload) {
+        throw new BadRequestException('Invalid Google token');
+      }
+
+      const { email, name, picture, sub } = payload;
+
+      if (!email) {
+        throw new BadRequestException('Google account has no email');
+      }
+
+      // Tìm user hoặc tạo mới bằng Google
+      const user = await this.usersService.registerWithGoogle({
+        email,
+        name,
+        googleId: sub,
+        image: picture,
+      });
+
+      const jwtPayload = { username: user.email, sub: user._id };
+      return {
+        user: {
+          _id: user._id,
+          email: user.email,
+          username: user.name,
+          role: user.role,
+        },
+        access_token: this.jwtService.sign(jwtPayload),
+      };
+    } catch (err) {
+      console.error('Google login error:', err);
+      throw new BadRequestException('Google login failed');
+    }
   }
 
   handleRegister = async (registerDto: CreateAuthDto) => {

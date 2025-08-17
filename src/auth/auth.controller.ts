@@ -82,4 +82,10 @@ export class AuthController {
       .catch(() => { });
     return { message: 'Email sent successfully' };
   }
+
+  @Public()
+  @Post('google-login')
+  async googleLogin(@Body('token') token: string) {
+    return await this.authService.googleLogin(token);
+  }
 }

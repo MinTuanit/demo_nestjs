@@ -141,6 +141,32 @@ export class UsersService {
     }
   }
 
+  async registerWithGoogle(googleUser: { email: string; name?: string; googleId?: string; image?: string }) {
+    try {
+      const { email, name, image } = googleUser;
+
+      let user = await this.userModel.findOne({ email });
+
+      if (user) {
+        return user;
+      }
+      // Nếu chưa có → tạo mới user
+      user = await this.userModel.create({
+        name,
+        email,
+        password: null,
+        image: image,
+        isActive: true,
+        accountType: "GOOGLE"
+      });
+
+      return user;
+    } catch (error) {
+      console.error('Error in registerWithGoogle:', error);
+      throw new BadRequestException('Google register failed');
+    }
+  }
+
   async handleActive(codeDto: CodeAuthDto) {
     const user = await this.userModel.findOne({
       _id: codeDto._id,
